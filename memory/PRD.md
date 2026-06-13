@@ -33,3 +33,16 @@ Build the frontend UI for SplitLink, focused on a very intriguing landing page i
 ### P2
 - Split CSS into smaller focused modules for maintainability.
 - Add richer page transition states and additional link-preview metadata for buyer product pages.
+
+
+## Update — Backend-Aware Auth, Stripe Wiring, and Dashboards
+- Read existing backend before implementation. Backend source of truth is Clerk auth via `@clerk/backend`; protected endpoints require Bearer Clerk JWTs.
+- Stripe wiring uses existing backend endpoints only: `POST /api/connect/onboard` and `GET /api/connect/status`. No Stripe backend endpoint changes were made.
+- Frontend now exposes `/frontend-config.json` from server env and gracefully handles missing `CLERK_PUBLISHABLE_KEY`, `API_BASE_URL`, Stripe keys, and backend credentials.
+- Added merchant dashboard at `/dashboard` with separate merchant navigation, four stat cards, products/transactions tab structure, product cards, and empty/config states using only existing endpoints.
+- Added affiliate dashboard at `/affiliate` with separate affiliate navigation, four stat cards, My Links/Discover tabs, link cards, discover cards, and generate-link modal wired to existing `/api/affiliate-links` when auth/backend are configured.
+- Improved landing page with Family-inspired detail cards while preserving Awesomic/DESIGN.md visual system.
+
+## Validation Update
+- Testing agent iteration 2 passed requested frontend scope: landing, signup/onboarding, merchant/affiliate dashboards, graceful missing-config behavior, data-testid coverage, and no horizontal overflow.
+- No backend APIs were mocked. Real API calls are attempted only when configured; otherwise friendly configuration states appear.

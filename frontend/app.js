@@ -159,6 +159,17 @@ function userNameFallback() {
   return user?.fullName || user?.primaryEmailAddress?.emailAddress || 'SplitLink user';
 }
 
+function friendlyError(error, fallback) {
+  const message = error?.message || '';
+  if (message.includes('API_BASE_URL') || message.includes('Unable to reach configured API backend')) {
+    return 'Backend connection is not configured in this environment yet. Once API_BASE_URL and backend credentials are set, this will use the existing backend endpoints.';
+  }
+  if (message.includes('Missing authorization') || message.includes('Unauthorized') || error?.status === 401) {
+    return 'Please sign in with the configured Clerk account before continuing.';
+  }
+  return message || fallback;
+}
+
 function dashboardShell(role, content) {
   const navItems = role === 'merchant'
     ? [['/dashboard', 'Products'], ['/dashboard?tab=transactions', 'Transactions'], ['/dashboard/settings', 'Settings']]
@@ -248,7 +259,7 @@ async function renderMerchantDashboard() {
       api('/api/connect/status').catch(() => null),
     ]);
   } catch (error) {
-    errorMessage = error.message;
+    errorMessage = friendlyError(error, 'Merchant data could not be loaded.');
   }
   if (errorMessage) {
     shell(dashboardShell('merchant', emptyState('merchant', 'Merchant data unavailable', errorMessage, `<button class="pill-button" type="button" id="retry-dashboard" data-testid="merchant-dashboard-retry-button">Retry ${icon('arrow')}</button>`)));
@@ -312,7 +323,7 @@ async function renderAffiliateDashboard() {
       api('/api/products'),
     ]);
   } catch (error) {
-    errorMessage = error.message;
+    errorMessage = friendlyError(error, 'Affiliate data could not be loaded.');
   }
   if (errorMessage) {
     shell(dashboardShell('affiliate', emptyState('affiliate', 'Affiliate data unavailable', errorMessage, `<button class="pill-button" type="button" id="retry-dashboard" data-testid="affiliate-dashboard-retry-button">Retry ${icon('arrow')}</button>`)));
@@ -367,7 +378,7 @@ function bindAffiliateActions() {
         modal.querySelector('.modal-close').addEventListener('click', () => { modal.hidden = true; });
         modal.querySelector('[data-copy]').addEventListener('click', async (event) => { await navigator.clipboard?.writeText(url); event.currentTarget.textContent = 'Copied'; });
       } catch (error) {
-        button.textContent = error.message || 'Unavailable';
+        button.textContent = friendlyError(error, 'Unavailable');
       } finally {
         button.disabled = false;
       }
@@ -592,7 +603,7 @@ async function registerCurrentUser(role) {
     return { ok: true, message: 'Profile created.' };
   } catch (error) {
     if (error.status === 409) return { ok: true, message: 'Profile already exists.' };
-    return { ok: false, message: error.message };
+    return { ok: false, message: friendlyError(error, 'Profile setup could not complete.') };
   }
 }
 
@@ -638,7 +649,7 @@ async function renderOnboarding(success = false) {
         else throw new Error('Stripe onboarding URL was not returned.');
       } catch (error) {
         errorBox.hidden = false;
-        errorBox.textContent = error.message || 'Unable to start Stripe onboarding.';
+        errorBox.textContent = friendlyError(error, 'Unable to start Stripe onboarding.');
         button.disabled = false;
         button.innerHTML = `Connect with Stripe ${icon('arrow')}`;
       }
