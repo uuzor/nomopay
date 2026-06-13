@@ -34,6 +34,9 @@ router.post('/stripe', async (req: Request, res: Response): Promise<void> => {
       case 'charge.refunded':
         await handleRefund(event.data.object as Stripe.Charge);
         break;
+      case 'account.updated':
+        await handleAccountUpdated(event.data.object as Stripe.Account);
+        break;
       default:
         // Unhandled event — still return 200 so Stripe doesn't retry
         break;
@@ -230,6 +233,29 @@ async function handleRefund(charge: Stripe.Charge): Promise<void> {
     where: { id: transaction.id },
     data: { status: 'refunded' },
   });
+}
+
+async function handleAccountUpdated(account: Stripe.Account): Promise<void> {
+  const user = await prisma.user.findFirst({
+    where: { stripeAccountId: account.id },
+  });
+  if (!user) return;
+
+  // A connected account can be restricted by Stripe after initial onboarding
+  // (failed re-verification, suspicious activity, etc.). Keep our DB in sync
+  // so we don't try to transfer to a disabled account.
+  const onboardingComplete = !!(account.charges_enabled && account.payouts_enabled);
+
+  if (onboardingComplete !== user.stripeOnboardingComplete) {
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { stripeOnboardingComplete: onboardingComplete },
+    });
+    console.log(
+      `[webhook] account.updated: ${account.id} → onboardingComplete=${onboardingComplete}` +
+      ` (charges=${account.charges_enabled}, payouts=${account.payouts_enabled})`
+    );
+  }
 }
 
 export default router;
