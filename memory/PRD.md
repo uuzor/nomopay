@@ -53,3 +53,10 @@ Build the frontend UI for SplitLink, focused on a very intriguing landing page i
 - Rebuilt landing hero and sections with warm cream canvas, playful floating blob characters, coin details, Fraunces display typography, Inter UI text, Family-style pill CTAs, inset card borders, and expressive motion.
 - Preserved required product messaging: merchant/affiliate self-identifying CTAs, role-separated how-it-works flow, transparent 2% fee math, buyer product page preview, and final role CTA.
 - Regression testing iteration 3 passed: desktop/mobile landing, nav, CTAs, no overflow, and non-landing route regression.
+
+
+## Update — Signup and Onboarding Family-Style Redesign
+- Applied the new Family.co-inspired visual direction to signup, Stripe connect onboarding, and onboarding success screens.
+- Preserved backend-aware behavior: Clerk fallback remains, existing Stripe Connect button still calls `/api/connect/onboard`, and success routes to role-specific dashboards.
+- Improved onboarding conversion copy while keeping the focused no-navigation/no-distraction principle.
+- Testing iteration 4 passed: signup role switching, live slug preview, onboarding connect, success state, route regression, data-testid coverage, and no mobile/desktop overflow.
