@@ -1,0 +1,5 @@
+name: how-can-we-verify-that-the-payment-s
+template: docker
+port: 3000
+health_path: /health
+tier: starter
