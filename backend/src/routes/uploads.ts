@@ -26,6 +26,11 @@ router.post('/presign', requireAuth, async (req: Request, res: Response): Promis
   const ext = parsed.data.contentType.split('/')[1];
   const path = `${user.id}/${Date.now()}.${ext}`;
 
+  if (!supabaseAdmin) {
+    res.status(503).json({ error: 'Storage not configured' });
+    return;
+  }
+
   const { data, error } = await supabaseAdmin.storage
     .from(STORAGE_BUCKET)
     .createSignedUploadUrl(path);
