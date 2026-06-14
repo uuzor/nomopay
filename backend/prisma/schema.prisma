@@ -1,0 +1,128 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  merchant
+  affiliate
+  both
+  admin
+}
+
+enum ProductStatus {
+  active
+  paused
+  archived
+}
+
+enum TransactionStatus {
+  pending
+  paid
+  refunded
+  disputed
+}
+
+model User {
+  id                       String    @id @default(cuid())
+  clerkId                  String    @unique
+  email                    String    @unique
+  name                     String
+  role                     UserRole  @default(merchant)
+  slug                     String    @unique
+  stripeAccountId          String?
+  stripeOnboardingComplete Boolean   @default(false)
+  createdAt                DateTime  @default(now())
+  updatedAt                DateTime  @updatedAt
+
+  products       Product[]
+  affiliateLinks AffiliateLink[]
+  merchantTxns   Transaction[]   @relation("MerchantTransactions")
+  affiliateTxns  Transaction[]   @relation("AffiliateTransactions")
+
+  @@map("users")
+}
+
+model Product {
+  id             String        @id @default(cuid())
+  merchantId     String
+  merchant       User          @relation(fields: [merchantId], references: [id])
+  title          String
+  description    String
+  price          Int           // in cents
+  currency       String        @default("usd")
+  commissionRate Decimal       @db.Decimal(5, 2) // e.g. 15.00 = 15%
+  imageUrl       String?
+  slug           String        @unique
+  status         ProductStatus @default(active)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  affiliateLinks AffiliateLink[]
+  transactions   Transaction[]
+
+  @@map("products")
+}
+
+model AffiliateLink {
+  id          String   @id @default(cuid())
+  productId   String
+  product     Product  @relation(fields: [productId], references: [id])
+  affiliateId String
+  affiliate   User     @relation(fields: [affiliateId], references: [id])
+  refCode     String   @unique
+  customLabel String?
+  createdAt   DateTime @default(now())
+
+  clicks       Click[]
+  transactions Transaction[]
+
+  @@map("affiliate_links")
+}
+
+model Transaction {
+  id                     String            @id @default(cuid())
+  stripePaymentIntentId  String            @unique
+  stripeCheckoutSessionId String           @unique
+  productId              String
+  product                Product           @relation(fields: [productId], references: [id])
+  merchantId             String
+  merchant               User              @relation("MerchantTransactions", fields: [merchantId], references: [id])
+  affiliateId            String?
+  affiliate              User?             @relation("AffiliateTransactions", fields: [affiliateId], references: [id])
+  affiliateLinkId        String?
+  affiliateLink          AffiliateLink?    @relation(fields: [affiliateLinkId], references: [id])
+  grossAmount            Int               // in cents
+  platformFee            Int               // in cents
+  merchantPayout         Int               // in cents
+  affiliateCommission    Int               // in cents
+  currency               String            @default("usd")
+  status                 TransactionStatus @default(pending)
+  buyerEmail             String?
+  merchantTransferId     String?
+  affiliateTransferId    String?
+  transferGroup          String?
+  createdAt              DateTime          @default(now())
+  updatedAt              DateTime          @updatedAt
+
+  @@map("transactions")
+}
+
+model Click {
+  id              String        @id @default(cuid())
+  affiliateLinkId String
+  affiliateLink   AffiliateLink @relation(fields: [affiliateLinkId], references: [id])
+  timestamp       DateTime      @default(now())
+  userAgent       String?
+  country         String?
+  // hashed (affiliateLinkId + IP + day) for dedup — raw IP never stored (GDPR)
+  clickHash       String?
+
+  @@index([affiliateLinkId])
+  @@index([clickHash])
+  @@map("clicks")
+}
