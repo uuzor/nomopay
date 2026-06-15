@@ -61,6 +61,11 @@ interface LaunchKit {
 function GenerateModal({ link, onClose }: { link: GeneratedLink; onClose: () => void }) {
   const [copied, setCopied] = useState(false)
   const [clicks, setClicks] = useState(500)
+  const [tab, setTab] = useState<'link' | 'kit'>('link')
+  const [kit, setKit] = useState<LaunchKit | null>(null)
+  const [kitLoading, setKitLoading] = useState(false)
+  const [kitError, setKitError] = useState('')
+  const [copiedIdx, setCopiedIdx] = useState<string | null>(null)
   const conversion = 3.2
   const monthlyEarning = (clicks * (conversion / 100) * link.price * (link.commissionRate / 100))
 
@@ -70,58 +75,136 @@ function GenerateModal({ link, onClose }: { link: GeneratedLink; onClose: () => 
     setTimeout(() => setCopied(false), 2000)
   }
 
+  async function copyText(text: string, key: string) {
+    await navigator.clipboard?.writeText(text)
+    setCopiedIdx(key)
+    setTimeout(() => setCopiedIdx(null), 2000)
+  }
+
+  async function openKitTab() {
+    setTab('kit')
+    if (kit || kitLoading) return
+    setKitLoading(true)
+    setKitError('')
+    try {
+      const res = await fetch('/api/ai-launch-kit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          productTitle: link.productTitle,
+          productDescription: link.productDescription || link.productTitle,
+          price: link.price,
+          commissionRate: link.commissionRate,
+          affiliateUrl: link.url,
+        }),
+      })
+      const data = await res.json() as { kit?: LaunchKit; error?: string }
+      if (!res.ok || !data.kit) throw new Error(data.error || 'Generation failed')
+      setKit(data.kit)
+    } catch (err: unknown) {
+      setKitError((err as Error).message || 'Content generation failed')
+    } finally {
+      setKitLoading(false)
+    }
+  }
+
   return (
     <div className="modal-backdrop" data-testid="affiliate-generate-modal" onClick={onClose}>
-      <div className="share-modal" data-testid="affiliate-share-modal-card" onClick={e => e.stopPropagation()}>
+      <div className="share-modal" data-testid="affiliate-share-modal-card" onClick={e => e.stopPropagation()} style={{ maxWidth: 520 }}>
         <button type="button" className="modal-close" onClick={onClose} data-testid="affiliate-share-modal-close">
           <IconX />
         </button>
-        <h3 data-testid="affiliate-share-modal-title">Your link is ready</h3>
-        <p style={{ color: 'var(--color-steel)', fontSize: 13, fontWeight: 700, margin: '8px 0 14px' }}>
-          {link.productTitle} · Earn {link.commissionRate}% per sale
-        </p>
-        <div className="copy-row" data-testid="affiliate-share-modal-url-row">
-          <span data-testid="affiliate-share-modal-url">{link.url}</span>
-          <button type="button" onClick={copy} data-testid="affiliate-share-modal-copy">
-            {copied ? 'Copied!' : 'Copy'}
+
+        <div className="dashboard-tabs" style={{ marginBottom: 16 }}>
+          <button type="button" className={tab === 'link' ? 'active' : ''} onClick={() => setTab('link')} data-testid="modal-tab-link">
+            Your link
+          </button>
+          <button type="button" className={tab === 'kit' ? 'active' : ''} onClick={openKitTab} data-testid="modal-tab-kit">
+            ✨ AI Launch Kit
           </button>
         </div>
 
-        {/* Earnings calculator */}
-        <div style={{ marginTop: 18, padding: 14, borderRadius: 18, background: 'var(--color-fog)' }}>
-          <p style={{ margin: '0 0 10px', color: 'var(--color-steel)', fontSize: 12, fontWeight: 850 }}>EARNINGS CALCULATOR</p>
-          <label style={{ color: 'var(--color-graphite)', fontSize: 13, fontWeight: 800, display: 'block' }}>
-            Monthly clicks: {clicks}
-            <input
-              type="range"
-              min={10}
-              max={5000}
-              step={10}
-              value={clicks}
-              onChange={e => setClicks(Number(e.target.value))}
-              style={{ width: '100%', marginTop: 8 }}
-            />
-          </label>
-          <p style={{ margin: '10px 0 0', color: 'var(--color-graphite)', fontWeight: 800, fontSize: 14 }}>
-            At {conversion}% conversion → <strong style={{ fontSize: 18 }}>{money(monthlyEarning)}/mo</strong>
-          </p>
-        </div>
+        {tab === 'link' && (
+          <>
+            <h3 data-testid="affiliate-share-modal-title">Your link is ready</h3>
+            <p style={{ color: 'var(--color-steel)', fontSize: 13, fontWeight: 700, margin: '8px 0 14px' }}>
+              {link.productTitle} · Earn {link.commissionRate}% per sale
+            </p>
+            <div className="copy-row" data-testid="affiliate-share-modal-url-row">
+              <span data-testid="affiliate-share-modal-url">{link.url}</span>
+              <button type="button" onClick={copy} data-testid="affiliate-share-modal-copy">
+                {copied ? 'Copied!' : 'Copy'}
+              </button>
+            </div>
+            <div style={{ marginTop: 18, padding: 14, borderRadius: 18, background: 'var(--color-fog)' }}>
+              <p style={{ margin: '0 0 10px', color: 'var(--color-steel)', fontSize: 12, fontWeight: 850 }}>EARNINGS CALCULATOR</p>
+              <label style={{ color: 'var(--color-graphite)', fontSize: 13, fontWeight: 800, display: 'block' }}>
+                Monthly clicks: {clicks}
+                <input
+                  type="range"
+                  min={10}
+                  max={5000}
+                  step={10}
+                  value={clicks}
+                  onChange={e => setClicks(Number(e.target.value))}
+                  style={{ width: '100%', marginTop: 8 }}
+                />
+              </label>
+              <p style={{ margin: '10px 0 0', color: 'var(--color-graphite)', fontWeight: 800, fontSize: 14 }}>
+                At {conversion}% conversion → <strong style={{ fontSize: 18 }}>{money(monthlyEarning)}/mo</strong>
+              </p>
+            </div>
+            <div className="share-row" style={{ marginTop: 14 }} data-testid="affiliate-share-buttons">
+              <button type="button" onClick={() => window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(`Check this out: ${link.url}`)}`)} >Twitter/X</button>
+              <button type="button" onClick={copy}>Instagram caption</button>
+              <button type="button" onClick={() => window.open(`https://wa.me/?text=${encodeURIComponent(link.url)}`)}>WhatsApp</button>
+            </div>
+          </>
+        )}
 
-        <div className="share-row" style={{ marginTop: 14 }} data-testid="affiliate-share-buttons">
-          <button
-            type="button"
-            onClick={() => window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(`Check this out: ${link.url}`)}`)}
-          >
-            Twitter/X
-          </button>
-          <button type="button" onClick={copy}>Instagram caption</button>
-          <button
-            type="button"
-            onClick={() => window.open(`https://wa.me/?text=${encodeURIComponent(link.url)}`)}
-          >
-            WhatsApp
-          </button>
-        </div>
+        {tab === 'kit' && (
+          <div data-testid="affiliate-launch-kit">
+            {kitLoading && (
+              <div style={{ textAlign: 'center', padding: '40px 0' }} data-testid="kit-loading">
+                <div style={{ fontSize: 36, marginBottom: 12 }}>✨</div>
+                <p style={{ fontWeight: 700, color: 'var(--color-steel)' }}>Claude is writing your content…</p>
+              </div>
+            )}
+            {kitError && <div className="inline-error" data-testid="kit-error">{kitError}</div>}
+            {kit && !kitLoading && (
+              <>
+                <h3 style={{ marginBottom: 16 }}>AI Launch Kit</h3>
+                <div style={{ marginBottom: 16 }}>
+                  <p style={{ margin: '0 0 8px', color: 'var(--color-steel)', fontSize: 12, fontWeight: 850 }}>🎵 TIKTOK HOOKS</p>
+                  {kit.tiktok.map((t, i) => (
+                    <div key={i} className="copy-row" style={{ marginBottom: 8 }} data-testid={`kit-tiktok-${i + 1}`}>
+                      <span style={{ fontSize: 13 }}>{t}</span>
+                      <button type="button" onClick={() => copyText(t, `tiktok-${i}`)}>{copiedIdx === `tiktok-${i}` ? '✓' : 'Copy'}</button>
+                    </div>
+                  ))}
+                </div>
+                <div style={{ marginBottom: 16 }}>
+                  <p style={{ margin: '0 0 8px', color: 'var(--color-steel)', fontSize: 12, fontWeight: 850 }}>📸 INSTAGRAM CAPTIONS</p>
+                  {kit.instagram.map((t, i) => (
+                    <div key={i} className="copy-row" style={{ marginBottom: 8 }} data-testid={`kit-instagram-${i + 1}`}>
+                      <span style={{ fontSize: 13 }}>{t}</span>
+                      <button type="button" onClick={() => copyText(t, `instagram-${i}`)}>{copiedIdx === `instagram-${i}` ? '✓' : 'Copy'}</button>
+                    </div>
+                  ))}
+                </div>
+                <div>
+                  <p style={{ margin: '0 0 8px', color: 'var(--color-steel)', fontSize: 12, fontWeight: 850 }}>✉️ EMAIL BLURB</p>
+                  <div style={{ background: 'var(--color-fog)', borderRadius: 14, padding: 12, fontSize: 13, whiteSpace: 'pre-line' }} data-testid="kit-email">
+                    {kit.email}
+                  </div>
+                  <button type="button" onClick={() => copyText(kit.email, 'email')} style={{ marginTop: 8, fontSize: 12 }} className="pill-button small" data-testid="kit-email-copy">
+                    {copiedIdx === 'email' ? 'Copied!' : 'Copy email'}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        )}
       </div>
     </div>
   )

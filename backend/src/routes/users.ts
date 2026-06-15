@@ -13,6 +13,7 @@ const RegisterSchema = z.object({
   name: z.string().min(1),
   role: z.enum(['merchant', 'affiliate', 'both']),
   slug: z.string().min(3).max(50).regex(/^[a-z0-9-]+$/),
+  referredBySlug: z.string().optional(),
 });
 
 // POST /api/users/register — called after Clerk sign-up to create DB record
@@ -23,7 +24,7 @@ router.post('/register', async (req: Request, res: Response): Promise<void> => {
     return;
   }
 
-  const { clerkId, email, name, role, slug } = parsed.data;
+  const { clerkId, email, name, role, slug, referredBySlug } = parsed.data;
 
   // Verify the clerkId is a real Clerk user
   try {
@@ -46,7 +47,7 @@ router.post('/register', async (req: Request, res: Response): Promise<void> => {
   }
 
   const user = await prisma.user.create({
-    data: { clerkId, email, name, role, slug },
+    data: { clerkId, email, name, role, slug, referredBySlug: referredBySlug || null },
   });
 
   res.status(201).json({ user });
@@ -60,6 +61,19 @@ router.get('/me', async (req: Request, res: Response): Promise<void> => {
     return;
   }
   res.json({ user: authReq.user });
+});
+
+// GET /api/users/by-slug/:slug — public, returns name + slug for referral page
+router.get('/by-slug/:slug', async (req: Request, res: Response): Promise<void> => {
+  const user = await prisma.user.findUnique({
+    where: { slug: req.params.slug },
+    select: { name: true, slug: true, role: true },
+  });
+  if (!user) {
+    res.status(404).json({ error: 'User not found' });
+    return;
+  }
+  res.json({ user });
 });
 
 export default router;

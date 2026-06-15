@@ -36,6 +36,7 @@ model User {
   slug                     String    @unique
   stripeAccountId          String?
   stripeOnboardingComplete Boolean   @default(false)
+  referredBySlug           String?
   createdAt                DateTime  @default(now())
   updatedAt                DateTime  @updatedAt
 
