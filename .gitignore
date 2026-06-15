@@ -5,3 +5,9 @@ credentials.json
 *.pem
 *.key
 .credentials
+
+# Next.js build output & test artifacts
+web/.next/
+web/test-results/
+web/playwright-report/
+web/tsconfig.tsbuildinfo
