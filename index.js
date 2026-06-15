@@ -39,7 +39,7 @@ const server = http.createServer((req, res) => {
       200,
       JSON.stringify({
         clerkPublishableKey: process.env.CLERK_PUBLISHABLE_KEY || process.env.VITE_CLERK_PUBLISHABLE_KEY || '',
-        apiBaseUrl: process.env.API_BASE_URL || '',
+        apiBaseUrl: '',
         stripePublishableKey: process.env.STRIPE_PUBLISHABLE_KEY || '',
       }),
       'application/json; charset=utf-8'

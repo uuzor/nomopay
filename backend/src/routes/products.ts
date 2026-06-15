@@ -35,15 +35,25 @@ router.get('/', requireAuth, async (req: Request, res: Response): Promise<void> 
 
   const pageSize = Math.min(parseInt(limit, 10) || 20, 100);
 
-  if (user.role === 'affiliate') {
-    // Affiliates browse the marketplace — all active products
+  const canAffiliate = ['affiliate', 'both'].includes(user.role);
+  const canMerchant  = ['merchant', 'both'].includes(user.role);
+
+  // Determine view: affiliates always see the marketplace; 'both' users default to their
+  // own products but can pass ?view=marketplace to browse as an affiliate.
+  const view = typeof req.query.view === 'string' ? req.query.view : null;
+  const marketplaceView = canAffiliate && (!canMerchant || view === 'marketplace');
+
+  if (marketplaceView) {
+    // Marketplace — all active products, sorted by commission amount DESC
+    // commissionRate is a percentage; higher rate = higher payout per sale at similar price points.
+    // This surfaces the most lucrative opportunities first.
     const products = await prisma.product.findMany({
       where: { status: 'active' },
       include: {
         merchant: { select: { name: true, slug: true } },
         _count: { select: { affiliateLinks: true, transactions: true } },
       },
-      orderBy: [{ createdAt: 'desc' }],
+      orderBy: [{ commissionRate: 'desc' }, { createdAt: 'desc' }],
       take: pageSize,
       ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
     });
@@ -108,7 +118,7 @@ router.post(
   async (req: Request, res: Response): Promise<void> => {
     const user = (req as AuthenticatedRequest).user!;
 
-    if (user.role === 'affiliate') {
+    if (!['merchant', 'both'].includes(user.role)) {
       res.status(403).json({ error: 'Affiliates cannot create products' });
       return;
     }

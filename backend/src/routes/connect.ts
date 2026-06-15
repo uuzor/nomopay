@@ -16,10 +16,20 @@ router.post('/onboard', requireAuth, async (req: Request, res: Response): Promis
 
   // Create Express account if not already created
   if (!stripeAccountId) {
+    const isAffiliate = ['affiliate', 'both'].includes(user.role);
+
     const account = await stripe.accounts.create({
       type: 'express',
       email: user.email,
       metadata: { userId: user.id, role: user.role },
+      // Affiliate commissions are held for 7 days to protect against refunds.
+      // Funds sit in their Stripe balance (visible to them) but don't hit their bank
+      // until released by the daily cron job after the hold period clears.
+      ...(isAffiliate && {
+        settings: {
+          payouts: { schedule: { interval: 'manual' } },
+        },
+      }),
     });
     stripeAccountId = account.id;
 

@@ -1,6 +1,6 @@
 import { Resend } from 'resend';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 const FROM = process.env.EMAIL_FROM ?? 'noreply@splitlink.com';
 
 export async function sendSaleNotification(opts: {
@@ -16,6 +16,7 @@ export async function sendSaleNotification(opts: {
   const payout = (opts.merchantPayout / 100).toFixed(2);
   const curr = opts.currency.toUpperCase();
 
+  if (!resend) return;
   await resend.emails.send({
     from: FROM,
     to: opts.merchantEmail,
@@ -41,6 +42,7 @@ export async function sendCommissionNotification(opts: {
   const commission = (opts.commissionAmount / 100).toFixed(2);
   const curr = opts.currency.toUpperCase();
 
+  if (!resend) return;
   await resend.emails.send({
     from: FROM,
     to: opts.affiliateEmail,
