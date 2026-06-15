@@ -104,7 +104,7 @@ export default function ShopifyImportPage() {
       <div className="dashboard-header" data-testid="import-header">
         <div>
           <span className="eyebrow" style={{ color: 'var(--family-orange)' }}>
-            <IconSpark style={{ width: 14, height: 14, marginRight: 4 }} /> AI-powered
+            <span style={{ display: 'inline-flex', width: 14, height: 14, marginRight: 4, verticalAlign: 'middle' }}><IconSpark /></span> AI-powered
           </span>
           <h1 data-testid="import-title">Shopify Import Wizard</h1>
           <p data-testid="import-subtitle">

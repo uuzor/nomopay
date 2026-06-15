@@ -10,6 +10,7 @@ import { slugify } from '@/lib/api'
 function SignupContent() {
   const params = useSearchParams()
   const role = params.get('role') === 'affiliate' ? 'affiliate' : 'merchant'
+  const referrer = params.get('referrer') || (typeof window !== 'undefined' ? localStorage.getItem('splitlink_referrer') || '' : '')
   const [slug, setSlug] = useState(`alex-${role}`)
   const urlBase = role === 'merchant' ? 'splitlink.com/store/' : 'splitlink.com/a/'
 
@@ -84,9 +85,9 @@ function SignupContent() {
 
           <SignUp
             routing="hash"
-            afterSignUpUrl={`/onboarding?role=${role}&slug=${slug}`}
+            afterSignUpUrl={`/onboarding?role=${role}&slug=${slug}${referrer ? `&referrer=${encodeURIComponent(referrer)}` : ''}`}
             afterSignInUrl={role === 'affiliate' ? '/affiliate' : '/dashboard'}
-            unsafeMetadata={{ role, slug }}
+            unsafeMetadata={{ role, slug, referrer: referrer || undefined }}
           />
 
           <p className="fine-print" data-testid="signup-verification-note">

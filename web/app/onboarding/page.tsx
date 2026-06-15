@@ -12,6 +12,7 @@ function OnboardingContent() {
   const router = useRouter()
   const role = params.get('role') === 'affiliate' ? 'affiliate' : 'merchant'
   const slugParam = params.get('slug') || ''
+  const referrer = params.get('referrer') || (typeof window !== 'undefined' ? localStorage.getItem('splitlink_referrer') || '' : '')
   const { getToken } = useAuth()
   const { user } = useUser()
   const [status, setStatus] = useState<'registering' | 'ready' | 'error'>('registering')
@@ -37,9 +38,11 @@ function OnboardingContent() {
             name: user!.fullName || user!.firstName || 'SplitLink user',
             role,
             slug,
+            referredBySlug: referrer || undefined,
           }),
           token: token || undefined,
         })
+        if (referrer && typeof window !== 'undefined') localStorage.removeItem('splitlink_referrer')
         setStatus('ready')
         setRegMsg('Profile ready')
       } catch (err: unknown) {
@@ -54,7 +57,7 @@ function OnboardingContent() {
     }
 
     register()
-  }, [user, getToken, role, slugParam])
+  }, [user, getToken, role, slugParam, referrer])
 
   async function handleConnectStripe() {
     setLoading(true)
@@ -92,6 +95,11 @@ function OnboardingContent() {
           <span>Stripe</span>
         </div>
 
+        {referrer && (
+          <div style={{ background: 'var(--color-fog)', borderRadius: 12, padding: '8px 14px', marginBottom: 12, fontSize: 13, fontWeight: 700, color: 'var(--color-graphite)' }} data-testid="onboarding-referral-badge">
+            Referred by <strong>{referrer}</strong> · They earn 0.1% on your sales
+          </div>
+        )}
         <span className="family-kicker" data-testid="onboarding-role-eyebrow">One more step</span>
         <h1 data-testid="onboarding-title">Connect your payment account.</h1>
         <p data-testid="onboarding-description">
